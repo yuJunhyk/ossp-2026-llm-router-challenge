@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright 2026 yuJunhyk
+# SPDX-License-Identifier: Apache-2.0
+
 """T2 실험 v2: uplift 직접 학습 + 앙상블 — 결정량(uplift) 예측 품질로 비교.
 
 변형:
@@ -16,7 +19,7 @@ import sys
 import math
 from pathlib import Path
 
-REPO = Path("/Users/yujunhyeog/ossp-router")
+REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "baselines"))
 

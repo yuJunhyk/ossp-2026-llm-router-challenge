@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright 2026 yuJunhyk
+# SPDX-License-Identifier: Apache-2.0
+
 """T2 실험 v3: 특징 확장 + 앙상블 가중 튜닝.
 
 - 확장 dense 특징: 문자 종류별 구성(라틴/한글/숫자/공백/기호), 줄 구조,
@@ -12,7 +15,7 @@ import re
 from decimal import Decimal
 from pathlib import Path
 
-REPO = Path("/Users/yujunhyeog/ossp-router")
+REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "baselines"))
 

@@ -31,8 +31,7 @@ from .protocol import (
 
 
 _CODE_MARKERS = re.compile(
-    r"```|(?:^|\s)(?:def|class|function|SELECT|FROM|import|#include)\b|"
-    r"[{};]\s*$",
+    r"```|(?:^|\s)(?:def|class|function|SELECT|FROM|import|#include)\b|" r"[{};]\s*$",
     re.IGNORECASE | re.MULTILINE,
 )
 _MATH_MARKERS = re.compile(r"[=+\-*/^∑∫√≈≠≤≥<>]|\\(?:frac|sum|int|sqrt)\b")
@@ -126,13 +125,9 @@ def select_model(features: PromptFeatures, tier: str) -> str:
         raise ProtocolError(f"알 수 없는 tier: {tier}")
     score = complexity_score(features)
     if tier == "fast":
-        return (
-            "ax31" if score >= 3 and not features.long_context else "ax31-light"
-        )
+        return "ax31" if score >= 3 and not features.long_context else "ax31-light"
     if tier == "balanced":
-        return (
-            "ax31" if score >= 2 and not features.long_context else "ax31-light"
-        )
+        return "ax31" if score >= 2 and not features.long_context else "ax31-light"
     # Without a learned output-length estimate, this deliberately weak baseline
     # avoids the much less predictable think-model cost.
     return "ax31"
@@ -213,7 +208,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             if args.policy is not None
             else load_bundled_policy()
         )
-        submission = make_submission(inputs, policy, args.tier)
+        # 동봉된 ens 아티팩트가 있으면 학습된 라우터를, 없으면 기준 휴리스틱을 쓴다.
+        # 순환 import를 피하기 위해 지연 import한다 (ens_router가 이 모듈을 참조).
+        from . import ens_router
+
+        artifact = ens_router.load_bundled_artifact()
+        if artifact is not None:
+            submission = ens_router.make_ens_submission(
+                inputs, policy, artifact, args.tier
+            )
+        else:
+            submission = make_submission(inputs, policy, args.tier)
         write_submission_atomic(args.output, submission)
     except (OSError, ProtocolError, ValueError) as exc:
         print(f"오류: {exc}", file=sys.stderr)

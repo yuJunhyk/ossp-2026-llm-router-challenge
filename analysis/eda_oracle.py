@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright 2026 yuJunhyk
+# SPDX-License-Identifier: Apache-2.0
+
 """T1: EDA + tier별 oracle 상한 산출.
 
 공식 비용 정책(configs/routing-policy.v1.json)으로 문항별 비용을 계산하고,
@@ -7,8 +10,9 @@
 import json
 import statistics
 from decimal import Decimal
+from pathlib import Path
 
-REPO = "/Users/yujunhyeog/ossp-router"
+REPO = str(Path(__file__).resolve().parent.parent)
 MODELS = ["ax31-light", "ax31", "axk1-think"]
 RATES = {  # (input_rate, output_rate) per 1M tokens, fixed=0
     "ax31-light": (Decimal("1"), Decimal("4")),
