@@ -62,11 +62,11 @@ ROUND_GRID = (100, 200, 400, 800)
 FOLDS = 5
 SEEDS = (7, 8, 9)
 # 배포 버퍼: train 실제 비용비율 × 버퍼 ≤ 한도가 되도록 안전계수를 고른다.
-# 근거 — 실측 train→Dev 비용 이동: fast +5.4%, balanced −5.5%, premium +15.6%
-# (2026-08-11 Dev 1회 확인), 공식 hash-regex의 Dev→비공개 +5.4% 초과 사례.
-# 관측 이동폭 + 비공개 여유분을 합쳐 tier별로 차등화하며, premium은 K1 출력
-# 꼬리의 변동성 때문에 가장 보수적으로 둔다.
-DEPLOY_BUFFER = {"fast": 1.12, "balanced": 1.10, "premium": 1.30}
+# 근거 — 실측 train→Dev 비용 이동: fast +5.4%~+7.4%(선택 구성에 따라),
+# balanced −5.5%, premium +15.6% (2026-08-11 Dev 확인 2회), 공식 hash-regex의
+# Dev→비공개 +5.4% 초과 사례. 관측 이동폭 + 비공개 여유분을 합쳐 tier별로
+# 차등화하며, premium은 K1 출력 꼬리의 변동성 때문에 가장 보수적으로 둔다.
+DEPLOY_BUFFER = {"fast": 1.16, "balanced": 1.10, "premium": 1.30}
 TARGET_NAMES = (
     "score_light",
     "uplift_ax31",
