@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright 2026 yuJunhyk
+# SPDX-License-Identifier: Apache-2.0
+
 """T2 실험 v4: gbm-diff 하이퍼파라미터 탐색 (선택은 train OOF로만).
 
 - 탐색: num_leaves × min_data_in_leaf × learning_rate
@@ -9,7 +12,7 @@ import sys
 import math
 from pathlib import Path
 
-REPO = Path("/Users/yujunhyeog/ossp-router")
+REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "baselines"))
 

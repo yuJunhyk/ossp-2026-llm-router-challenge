@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright 2026 yuJunhyk
+# SPDX-License-Identifier: Apache-2.0
+
 """T2 실험: GBM(LightGBM) vs ridge — 같은 특징, Dev 점수·마진 정책 비교.
 
 - 특징: 공식 hash-regex와 동일 (14 dense + 256 hash bins)
@@ -11,7 +14,7 @@ import math
 from decimal import Decimal
 from pathlib import Path
 
-REPO = Path("/Users/yujunhyeog/ossp-router")
+REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "baselines"))
 
