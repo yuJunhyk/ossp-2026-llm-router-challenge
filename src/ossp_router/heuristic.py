@@ -208,19 +208,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             if args.policy is not None
             else load_bundled_policy()
         )
-        # 동봉된 ens 아티팩트로 학습된 라우터를 실행한다. 아티팩트가 없으면
+        # 동봉된 선형 아티팩트로 학습된 라우터를 실행한다. 아티팩트가 없으면
         # 패키징 오류이므로 조용히 휴리스틱으로 폴백하지 않고 즉시 실패한다
         # (폴백은 이미지 포장 사고를 숨겨 점수만 조용히 떨어뜨린다).
-        # 순환 import를 피하기 위해 지연 import한다 (ens_router가 이 모듈을 참조).
-        from . import ens_router
+        # 순환 import를 피하기 위해 지연 import한다 (learned_router가 이 모듈을 참조).
+        from . import learned_router
 
-        artifact = ens_router.load_bundled_artifact()
+        artifact = learned_router.load_bundled_artifact()
         if artifact is None:
             raise ProtocolError(
-                "ens 아티팩트를 찾을 수 없습니다. 제출 이미지 패키징 오류이므로 "
-                "실행을 중단합니다 (resources/ens-artifact.v1.json 포함 여부 확인)."
+                "learned 아티팩트를 찾을 수 없습니다. 제출 이미지 패키징 오류이므로 "
+                "실행을 중단합니다 (resources/learned-router.v1.json 포함 여부 확인)."
             )
-        submission = ens_router.make_ens_submission(inputs, policy, artifact, args.tier)
+        submission = learned_router.make_learned_submission(
+            inputs, policy, artifact, args.tier
+        )
         write_submission_atomic(args.output, submission)
     except (ImportError, OSError, ProtocolError, ValueError) as exc:
         print(f"오류: {exc}", file=sys.stderr)
