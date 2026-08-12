@@ -11,7 +11,7 @@ import sys
 import tempfile
 import unittest
 
-from ossp_router import ens_router
+from ossp_router import learned_router
 from ossp_router.heuristic import episode_text
 from ossp_router.protocol import load_bundled_policy, parse_input
 
@@ -22,7 +22,7 @@ def _batch(episode_ids=("first", "second", "third", "fourth")):
     return parse_input(
         {
             "schema_version": 1,
-            "challenge_id": "ens-test",
+            "challenge_id": "learned-test",
             "split": "synthetic",
             "episodes": [
                 {
@@ -92,19 +92,18 @@ def _content_decisions(batch, submission):
     }
 
 
-class EnsRouterTest(unittest.TestCase):
+class LearnedRouterTest(unittest.TestCase):
     def setUp(self) -> None:
         self.policy = load_bundled_policy()
-        self.artifact = ens_router.load_bundled_artifact()
-        # 아티팩트 부재는 포장 오류이므로 skip이 아니라 실패로 처리한다
-        # (skip은 이미지 포장 사고를 테스트 통과로 위장시킨다).
+        self.artifact = learned_router.load_bundled_artifact()
+        # 아티팩트 부재는 포장 오류이므로 skip이 아니라 실패로 처리한다.
         self.assertIsNotNone(
             self.artifact,
-            "동봉된 ens 아티팩트가 없습니다 (analysis/train_ens.py 실행 필요)",
+            "동봉된 learned 아티팩트가 없습니다 (analysis/train_linear.py 실행 필요)",
         )
 
     def test_artifact_matches_bundled_policy(self) -> None:
-        submission = ens_router.make_ens_submission(
+        submission = learned_router.make_learned_submission(
             _batch(), self.policy, self.artifact, "balanced"
         )
         self.assertEqual(4, len(submission.decisions))
@@ -117,13 +116,13 @@ class EnsRouterTest(unittest.TestCase):
                 self.assertEqual(
                     _content_decisions(
                         original,
-                        ens_router.make_ens_submission(
+                        learned_router.make_learned_submission(
                             original, self.policy, self.artifact, tier
                         ),
                     ),
                     _content_decisions(
                         reordered,
-                        ens_router.make_ens_submission(
+                        learned_router.make_learned_submission(
                             reordered, self.policy, self.artifact, tier
                         ),
                     ),
@@ -137,13 +136,13 @@ class EnsRouterTest(unittest.TestCase):
                 self.assertEqual(
                     _content_decisions(
                         original,
-                        ens_router.make_ens_submission(
+                        learned_router.make_learned_submission(
                             original, self.policy, self.artifact, tier
                         ),
                     ),
                     _content_decisions(
                         changed,
-                        ens_router.make_ens_submission(
+                        learned_router.make_learned_submission(
                             changed, self.policy, self.artifact, tier
                         ),
                     ),
@@ -180,16 +179,26 @@ class EnsRouterTest(unittest.TestCase):
             self.assertEqual(outputs[0], outputs[1])
             self.assertEqual("balanced", json.loads(outputs[0])["tier"])
 
-    def test_predictions_are_content_only(self) -> None:
+    def test_predictions_are_content_only_and_finite(self) -> None:
         batch = _batch()
-        scores, costs = ens_router.predict_episode(batch.episodes[0], self.artifact)
-        for mapping in (scores, costs):
-            self.assertEqual(set(mapping), {"ax31-light", "ax31", "axk1-think"})
-        self.assertLessEqual(costs["ax31-light"], costs["ax31"])
-        self.assertLessEqual(costs["ax31"], costs["axk1-think"])
-        for value in scores.values():
-            self.assertGreaterEqual(value, 0.0)
-            self.assertLessEqual(value, 1.0)
+        prediction = learned_router.predict_episode(batch.episodes[0], self.artifact)
+        self.assertEqual(set(prediction), {"ax31-light", "ax31", "axk1-think"})
+        for score, cost in prediction.values():
+            self.assertGreaterEqual(score, 0.0)
+            self.assertLessEqual(score, 1.0)
+            self.assertGreater(cost, 0.0)
+
+    def test_artifact_validation_rejects_truncated_weights(self) -> None:
+        payload = json.loads(
+            (ROOT / "src/ossp_router/resources/learned-router.v1.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        payload["weights"]["score"]["ax31"] = payload["weights"]["score"]["ax31"][:-1]
+        from ossp_router.protocol import ProtocolError
+
+        with self.assertRaises(ProtocolError):
+            learned_router.parse_artifact(payload)
 
 
 if __name__ == "__main__":
