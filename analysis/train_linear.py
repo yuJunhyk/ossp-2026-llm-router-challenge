@@ -44,11 +44,16 @@ from ossp_router.protocol import (
 )
 
 LAMBDA = 10.0
-# analysis/rematch.py 승자 설정 (build/rematch-report.json)
+# v1.6 uplift 축소 (analysis/V16-GATES.md, build/v16/uplift-shrink.json):
+# γ=0 — 3.1 점수 헤드를 Light 헤드 + 전체 train 평균 uplift 상수로 교체.
+# 예측된 L→M 격차(참값 상관 0.033)가 그리디 배분에 역선택을 일으키는 것을 차단.
+GAMMA = 0.0
+BIAS_SLOT = 33  # os2_features numeric bias (항상 1.0)
+# v1.6 γ=0 calibrate 승자 설정 (build/v16/uplift-shrink.json gamma=0.tiers)
 TIER_CONFIG = {
-    "fast": {"beta": 0.5, "margin": 0.90},
+    "fast": {"beta": 1.0, "margin": 0.94},
     "balanced": {"beta": 0.5, "margin": 0.96},
-    "premium": {"beta": 1.0, "margin": 0.80},
+    "premium": {"beta": 1.0, "margin": 0.92},
 }
 
 
@@ -103,8 +108,15 @@ def main() -> int:
             Y[i, j] = score
             Y[i, 3 + j] = math.log(max(cost, 1e-9))
 
-    print(f"[2/3] 전체 train 적합 (λ={LAMBDA}) + 아티팩트 생성")
+    print(
+        f"[2/3] 전체 train 적합 (λ={LAMBDA}) + v1.6 uplift 축소(γ={GAMMA}) + 아티팩트 생성"
+    )
     W = fit_dual_ridge(X, Y, LAMBDA)
+    # v1.6: ŝ_M' = ŝ_L + γ(ŝ_M − ŝ_L) + (1−γ)·ḡ — 가중치에 접기 (런타임 무변경)
+    gbar = float((Y[:, 1] - Y[:, 0]).mean())
+    W[:, 1] = GAMMA * W[:, 1] + (1.0 - GAMMA) * W[:, 0]
+    W[BIAS_SLOT, 1] += (1.0 - GAMMA) * gbar
+    print(f"  전체 train 평균 uplift ḡ = {gbar:+.4f} (bias 슬롯 {BIAS_SLOT}에 반영)")
     smear, sigma = cost_stats((X @ W)[:, 3:], Y[:, 3:])
 
     artifact_payload = {
@@ -112,7 +124,9 @@ def main() -> int:
         "schema_version": 1,
         "trained_on": (
             "public train split only (1,760 episodes); predictor/config selected "
-            "by template-group 5-fold x 3-seed CV (analysis/rematch.py), dev untouched"
+            "by template-group 5-fold x 3-seed CV (analysis/rematch.py), dev untouched; "
+            "v1.6 uplift-shrink gamma=0 applied to ax31 score head "
+            "(analysis/V16-GATES.md, pre-registered train-only gate)"
         ),
         "models": list(MODEL_IDS),
         "lambda": LAMBDA,
