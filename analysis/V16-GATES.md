@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright 2026 yuJunhyk
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # v1.6 실험 게이트 — 사전 등록 (2026-08-18, 공식 실행 전 고정)
 
 > v1.5와 동일 규약. 이 파일의 커밋 타임스탬프가 사전 등록 증명이다.

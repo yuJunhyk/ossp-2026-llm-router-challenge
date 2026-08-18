@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Copyright 2026 yuJunhyk
+SPDX-License-Identifier: Apache-2.0
+-->
+
 # v1.5 실험 게이트 — 사전 등록 (2026-08-18, 실행 전 고정)
 
 > v1.4의 build/v14/gates.md와 같은 역할이되, build/는 gitignore라 로컬 전용이었으므로
