@@ -8,8 +8,8 @@ offline training pipeline and the container runtime. Metadata such as
 ``episode_id`` is never an input.
 
 출처: 동일 참가자의 독립 재구현 세션(learned_features.py)에서 예측기
-재대결을 위해 그대로 이식했다 (재대결 하니스는 태그 v1.6-full-history의
-analysis/rematch.py 참조).
+재대결을 위해 그대로 이식했다 (재대결 하니스는 정리 이전 git 이력,
+커밋 132af11의 analysis/rematch.py 참조).
 """
 
 from __future__ import annotations

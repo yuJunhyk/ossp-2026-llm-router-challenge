@@ -10,7 +10,7 @@ JSON(모델별 score·log-비용 선형 계수 + smear/σ 보정 + tier별 β·m
 tier에만 의존하며, episode_id·순서·split을 읽지 않는다.
 
 예측기·β·margin은 Dev를 쓰지 않고 train 그룹-fold CV로만 선택했다
-(재대결 하니스는 태그 v1.6-full-history의 analysis/rematch.py 참조).
+(재대결 하니스는 정리 이전 git 이력(커밋 132af11)의 analysis/rematch.py 참조).
 """
 
 from __future__ import annotations
