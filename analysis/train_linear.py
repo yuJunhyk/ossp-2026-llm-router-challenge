@@ -3,7 +3,9 @@
 
 """선형(dual ridge) 라우터 최종 트레이너 — learned-router.v1.json 생성.
 
-선택 근거 (analysis/rematch.py, Dev 미사용):
+선택 근거 (rematch 재대결, Dev 미사용 — 하니스 원문은 태그
+v1.6-full-history의 analysis/rematch.py, 게이트 기록은 기록 저장소
+docs/experiments/ 이관본 참조):
 - 템플릿 그룹 5-fold × 3 seed = 15 fold 재대결에서 linear(λ=10)가
   weighted CV 0.6553으로 1위 (ens 최고 0.6540, v1.2 구성 w=0.5는 0.6465).
 - tier별 (β, margin)은 같은 재대결의 제약 캘리브레이션 승자를 그대로 쓴다:
@@ -30,7 +32,6 @@ sys.path.insert(0, str(REPO / "analysis"))
 
 import numpy as np
 
-from rematch import cost_stats, episode_text, fit_dual_ridge
 from os2_features import TOTAL_DIM, extract_sparse
 from os2_policy import allocate
 from ossp_router import learned_router
@@ -43,8 +44,37 @@ from ossp_router.protocol import (
     policy_sha256,
 )
 
+
+def episode_text(episode) -> str:
+    if episode.prompt is not None:
+        return episode.prompt
+    parts = []
+    for message in episode.messages or ():
+        content = getattr(message, "content", "")
+        if isinstance(content, str):
+            parts.append(content)
+    return "\n".join(parts)
+
+
+def fit_dual_ridge(X: np.ndarray, Y: np.ndarray, lam: float) -> np.ndarray:
+    """w = X^T (XX^T + lam I)^{-1} Y (독립 재구현 세션 train_router.py 이식)."""
+    n = X.shape[0]
+    K = X @ X.T
+    K[np.diag_indices(n)] += lam
+    alpha = np.linalg.solve(K, Y)
+    return X.T @ alpha
+
+
+def cost_stats(
+    pred_log: np.ndarray, true_log: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """log-비용 잔차의 smear(기대값 보정)와 σ (모델별)."""
+    resid = true_log - pred_log
+    return np.exp(resid).mean(axis=0), resid.std(axis=0)
+
+
 LAMBDA = 10.0
-# v1.6 uplift 축소 (analysis/V16-GATES.md, build/v16/uplift-shrink.json):
+# v1.6 uplift 축소 (게이트 기록 V16-GATES.md — 기록 저장소 docs/experiments/ 이관본):
 # γ=0 — 3.1 점수 헤드를 Light 헤드 + 전체 train 평균 uplift 상수로 교체.
 # 예측된 L→M 격차(참값 상관 0.033)가 그리디 배분에 역선택을 일으키는 것을 차단.
 GAMMA = 0.0

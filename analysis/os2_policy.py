@@ -8,7 +8,8 @@ offline calibration (work/train_router.py) and the container runtime share
 this exact module.
 
 출처: 동일 참가자의 독립 재구현 세션(learned_policy.py)에서 예측기
-재대결(analysis/rematch.py)을 위해 그대로 이식했다.
+재대결을 위해 그대로 이식했다 (재대결 하니스는 태그 v1.6-full-history의
+analysis/rematch.py 참조).
 """
 
 from __future__ import annotations
