@@ -3,8 +3,8 @@
 
 """선형(dual ridge) 라우터 최종 트레이너 — learned-router.v1.json 생성.
 
-선택 근거 (rematch 재대결, Dev 미사용 — 하니스 원문은 태그
-v1.6-full-history의 analysis/rematch.py, 게이트 기록은 기록 저장소
+선택 근거 (rematch 재대결, Dev 미사용 — 하니스 원문은 정리 이전
+git 이력(커밋 132af11)의 analysis/rematch.py, 게이트 기록은 기록 저장소
 docs/experiments/ 이관본 참조):
 - 템플릿 그룹 5-fold × 3 seed = 15 fold 재대결에서 linear(λ=10)가
   weighted CV 0.6553으로 1위 (ens 최고 0.6540, v1.2 구성 w=0.5는 0.6465).
