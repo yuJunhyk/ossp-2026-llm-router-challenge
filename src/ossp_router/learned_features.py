@@ -20,7 +20,7 @@ import zlib
 from typing import Dict, Tuple
 
 HASH_DIM = 8192  # 2**13
-NUMERIC_DIM = 40
+NUMERIC_DIM = 67  # 0..33 기존 numeric(33=bias), 40..66 KFEAT 27종 (v1.7)
 TOTAL_DIM = NUMERIC_DIM + HASH_DIM
 
 _WORD_RE = re.compile(r"[A-Za-z]+|[0-9]+|[가-힣]+|[一-鿿]+")
@@ -65,6 +65,125 @@ _WORD_PROBLEM_RE = re.compile(
     r"\beach\b.*\bcost\b|\bper (?:day|hour|week|month)\b",
     re.IGNORECASE | re.DOTALL,
 )
+
+
+
+# ---------------------------------------------------------------- KFEAT (v1.7)
+# K-only(K는 풀고 M은 못 푸는) 문항 판별 밀집 특징 27종 — 산술 규모·수학 구조·코드 제어흐름.
+# 출처: experiments-emb/kfeat.py (V17-EXP-KFEAT, 2026-08-23). 표준 라이브러리만. 라벨 무관 결정적.
+KFEAT_SLOT = 40  # numeric 인덱스 40..66 (기존 0..39 불변)
+KFEAT_DIM = 27
+
+_KF_NUM = re.compile(r"-?\d+(?:\.\d+)?")
+_KF_INT = re.compile(r"\d+")
+_KF_DEC = re.compile(r"\d+\.(\d+)")
+_KF_MUL = re.compile(r"\*(?!\*)|\btimes\b|\bmultiply\b|\bproduct\b", re.I)
+_KF_DIV = re.compile(r"\bdivided by\b|\bdivide\b|(?<![*/])/(?![/*])", re.I)
+_KF_PLACE = re.compile(
+    r"\b(units|tens|hundreds|thousands|ten thousands|hundred thousands|millions|ten millions|hundred millions|billions)\s+digit",
+    re.I)
+_KF_PLACE_RANK = {"units": 1, "tens": 2, "hundreds": 3, "thousands": 4, "ten thousands": 5,
+               "hundred thousands": 6, "millions": 7, "ten millions": 8, "hundred millions": 9, "billions": 10}
+_KF_ORD = re.compile(r"\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth)\b", re.I)
+_KF_ORD_RANK = {w: i + 1 for i, w in enumerate(
+    ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"])}
+_KF_DERIV = re.compile(r"(first|second|third|fourth|fifth)\s+derivative", re.I)
+_KF_BASE = re.compile(r"\bbase\s+\d+\b|\bin base\b", re.I)
+_KF_PROB = re.compile(r"\bprob(?:ability)?\b.*\bsequence\b|without replacement|picked", re.I)
+_KF_FRAC = re.compile(r"-?\d+/\d+")
+_KF_FUNC_DEF = re.compile(r"\bdef\s+f\s*\(")
+_KF_LOOP = re.compile(r"^\s*(for|while)\b", re.M)
+_KF_WHILE = re.compile(r"^\s*while\b", re.M)
+_KF_IF = re.compile(r"^\s*(if|elif)\b", re.M)
+_KF_STRM = re.compile(r"\.(center|ljust|rjust|zfill|removesuffix|removeprefix|partition|rpartition|replace|split|rsplit|join|strip|lstrip|rstrip|find|rfind|index|count|swapcase|title|capitalize|translate|expandtabs)\(")
+_KF_SLICE = re.compile(r"\[[^\[\]]*:[^\[\]]*\]")
+_KF_MODOP = re.compile(r"%\s*\d|\d\s*%")
+_KF_INPUT_PRED = re.compile(r"assert\s+f\(\?\?\)")
+_KF_OUTPUT_PRED = re.compile(r"==\s*\?\?")
+_KF_LATEX = re.compile(r"\$[^$]+\$")
+
+KFEAT_NAMES = [
+    "max_int_digits", "n_big_ints", "sum_dec_places", "max_dec_places", "mul_digit_mass",
+    "n_mul", "n_div", "place_rank", "ord_rank", "deriv_order", "is_base", "is_prob_seq",
+    "n_frac", "mixed_frac_dec", "n_latex", "total_digit_mass",
+    "code_lines", "n_loops", "n_while", "n_if", "n_strm", "n_slice", "n_modop",
+    "input_pred", "expected_len", "nest_depth", "max_arg_int_digits",
+]
+
+
+def _kfeat_numeric(text: str) -> list:
+    t = text[:6000]
+    ints = _KF_INT.findall(t)
+    int_lens = [len(s.lstrip("0") or "0") for s in ints]
+    decs = [len(m) for m in _KF_DEC.findall(t)]
+    nums = _KF_NUM.findall(t)
+    digit_mass = sum(len(n.replace("-", "").replace(".", "")) for n in nums)
+    # 곱셈 피연산자 자릿수 곱 (정밀 산술 부담)
+    mul_mass = 0.0
+    for m in _KF_MUL.finditer(t):
+        left = _KF_NUM.findall(t[max(0, m.start() - 30):m.start()])
+        right = _KF_NUM.findall(t[m.end():m.end() + 30])
+        if left and right:
+            a = len(left[-1].replace("-", "").replace(".", ""))
+            b = len(right[0].replace("-", "").replace(".", ""))
+            mul_mass = max(mul_mass, a * b)
+    pm = _KF_PLACE.search(t)
+    om = _KF_ORD.findall(t)
+    dm = _KF_DERIV.search(t)
+    is_code = bool(_KF_FUNC_DEF.search(t))
+    code_lines = 0; nest = 0; exp_len = 0; arg_digits = 0
+    if is_code:
+        body = t.split("assert")[0]
+        lines = [l for l in body.splitlines() if l.strip()]
+        code_lines = len(lines)
+        nest = max((len(l) - len(l.lstrip(" "))) // 4 for l in lines) if lines else 0
+        tail = t.split("assert", 1)[1] if "assert" in t else ""
+        if "==" in tail:
+            lhs, rhs = tail.split("==", 1)
+            exp_len = len(rhs.strip()) if "??" not in rhs else len(lhs.strip())
+            args = lhs if "??" not in lhs else rhs
+            arg_digits = max((len(s) for s in _KF_INT.findall(args)), default=0)
+    frac = len(_KF_FRAC.findall(t))
+    return [
+        math.log1p(max(int_lens, default=0)),
+        math.log1p(sum(1 for l in int_lens if l >= 5)),
+        math.log1p(sum(decs)),
+        math.log1p(max(decs, default=0)),
+        math.log1p(mul_mass),
+        math.log1p(len(_KF_MUL.findall(t))),
+        math.log1p(len(_KF_DIV.findall(t))),
+        float(_KF_PLACE_RANK.get(pm.group(1).lower(), 0)) if pm else 0.0,
+        float(max((_KF_ORD_RANK[w.lower()] for w in om), default=0)),
+        float(_KF_ORD_RANK.get(dm.group(1).lower(), 0)) if dm else 0.0,
+        1.0 if _KF_BASE.search(t) else 0.0,
+        1.0 if _KF_PROB.search(t) else 0.0,
+        math.log1p(frac),
+        1.0 if frac and decs else 0.0,
+        math.log1p(len(_KF_LATEX.findall(t))),
+        math.log1p(digit_mass),
+        math.log1p(code_lines),
+        math.log1p(len(_KF_LOOP.findall(t))) if is_code else 0.0,
+        math.log1p(len(_KF_WHILE.findall(t))) if is_code else 0.0,
+        math.log1p(len(_KF_IF.findall(t))) if is_code else 0.0,
+        math.log1p(len(_KF_STRM.findall(t))) if is_code else 0.0,
+        math.log1p(len(_KF_SLICE.findall(t))) if is_code else 0.0,
+        math.log1p(len(_KF_MODOP.findall(t))) if is_code else 0.0,
+        1.0 if is_code and _KF_INPUT_PRED.search(t) else 0.0,
+        math.log1p(exp_len),
+        float(nest),
+        math.log1p(arg_digits),
+    ]
+
+# K 비용 폭주 가드 — 소수/합성수/소인수분해 + 7자리 이상 정수: K(think) 비용이 중앙값의 ~33배로 폭주하고
+# 비용 예측기가 12~14배 과소 예측함(V17-EXP-KFEAT §13). 해당 문항은 K 승급 후보에서 제외한다.
+_KGUARD_PAT = re.compile(r"\b(prime|composite|prime factors?|factors? of)\b", re.I)
+_KGUARD_BIG = re.compile(r"\d{7,}")
+
+
+def k_guard(text: str) -> bool:
+    """True면 axk1-think 승급 금지 (예측 K 점수를 M 점수로 대체)."""
+    t = text[:6000]
+    return bool(_KGUARD_PAT.search(t) and _KGUARD_BIG.search(t))
 
 
 def _bucket(token: str, salt: str) -> Tuple[int, float]:
@@ -139,6 +258,9 @@ def extract_sparse(text: str) -> Dict[int, float]:
     for i, v in enumerate(numeric):
         if v != 0.0:
             features[i] = float(v)
+    for i, v in enumerate(_kfeat_numeric(text)):
+        if v != 0.0:
+            features[KFEAT_SLOT + i] = float(v)
 
     tokens = [w.lower() for w in words[:3000]]
     counts: Dict[int, float] = {}

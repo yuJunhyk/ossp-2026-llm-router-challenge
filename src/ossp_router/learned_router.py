@@ -22,7 +22,7 @@ from importlib import resources as importlib_resources
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-from .learned_features import TOTAL_DIM, extract_sparse
+from .learned_features import TOTAL_DIM, extract_sparse, k_guard
 from .learned_policy import allocate
 from .heuristic import episode_text
 from .protocol import (
@@ -172,6 +172,9 @@ def make_learned_submission(
     predictions = []
     for episode in inputs.episodes:
         base = predict_episode(episode, artifact)
+        if k_guard(episode_text(episode)):
+            # v1.7 가드: K 비용 폭주 문항 — K 점수를 M 점수로 낮춰 승급 후보에서 제외
+            base[MODEL_IDS[2]] = (base[MODEL_IDS[1]][0], base[MODEL_IDS[2]][1])
         predictions.append(
             {
                 model: (score, cost * pessimism[model])
