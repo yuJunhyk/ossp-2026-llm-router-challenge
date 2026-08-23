@@ -32,7 +32,7 @@ sys.path.insert(0, str(REPO / "analysis"))
 
 import numpy as np
 
-from os2_features import TOTAL_DIM, extract_sparse
+from os2_features import KFEAT_DIM, KFEAT_SLOT, TOTAL_DIM, extract_sparse, k_guard
 from os2_policy import allocate
 from ossp_router import learned_router
 from ossp_router.protocol import (
@@ -79,11 +79,11 @@ LAMBDA = 10.0
 # 예측된 L→M 격차(참값 상관 0.033)가 그리디 배분에 역선택을 일으키는 것을 차단.
 GAMMA = 0.0
 BIAS_SLOT = 33  # os2_features numeric bias (항상 1.0)
-# v1.6 γ=0 calibrate 승자 설정 (build/v16/uplift-shrink.json gamma=0.tiers)
+# v1.7 KFEAT-P + 가드, fast margin 0.94(train-only 스윕·cap v2 정책 상한) / premium 0.90 (V17-EXP-KFEAT §15, dev 8회차 통과)
 TIER_CONFIG = {
-    "fast": {"beta": 1.0, "margin": 0.94},
-    "balanced": {"beta": 0.5, "margin": 0.96},
-    "premium": {"beta": 1.0, "margin": 0.92},
+    "fast": {"beta": 0.5, "margin": 0.94},
+    "balanced": {"beta": 0.5, "margin": 0.92},
+    "premium": {"beta": 0.5, "margin": 0.90},
 }
 
 
@@ -141,7 +141,17 @@ def main() -> int:
     print(
         f"[2/3] 전체 train 적합 (λ={LAMBDA}) + v1.6 uplift 축소(γ={GAMMA}) + 아티팩트 생성"
     )
-    W = fit_dual_ridge(X, Y, LAMBDA)
+    # v1.7: KFEAT 열(40..66)을 train 평균·표준편차로 z-점수화해 적합한 뒤 스케일을 가중치에 접는다
+    # (런타임은 원값 특징만 계산 — 상수 불필요). W_raw = W_z/σ, bias −= Σ μ/σ·W_z.
+    kf = slice(KFEAT_SLOT, KFEAT_SLOT + KFEAT_DIM)
+    mu = X[:, kf].mean(axis=0)
+    sd = X[:, kf].std(axis=0) + 1e-9
+    Xz = X.copy()
+    Xz[:, kf] = (X[:, kf] - mu) / sd
+    W = fit_dual_ridge(Xz, Y, LAMBDA)
+    W[BIAS_SLOT, :] -= (mu / sd) @ W[kf, :]
+    W[kf, :] = W[kf, :] / sd[:, None]
+    print(f"  KFEAT z-점수 접기 완료 (μ/σ {KFEAT_DIM}개, 가중치 내장)")
     # v1.6: ŝ_M' = ŝ_L + γ(ŝ_M − ŝ_L) + (1−γ)·ḡ — 가중치에 접기 (런타임 무변경)
     gbar = float((Y[:, 1] - Y[:, 0]).mean())
     W[:, 1] = GAMMA * W[:, 1] + (1.0 - GAMMA) * W[:, 0]
@@ -155,8 +165,9 @@ def main() -> int:
         "trained_on": (
             "public train split only (1,760 episodes); predictor/config selected "
             "by template-group 5-fold x 3-seed CV (analysis/rematch.py), dev untouched; "
-            "v1.6 uplift-shrink gamma=0 applied to ax31 score head "
-            "(analysis/V16-GATES.md, pre-registered train-only gate)"
+            "v1.6 uplift-shrink gamma=0 applied to ax31 score head; "
+            "v1.7 KFEAT 27 dense features (numeric slots 40..66, z-score folded into weights) "
+            "+ runtime K-guard for primality/factorization prompts (V17-EXP-KFEAT)"
         ),
         "models": list(MODEL_IDS),
         "lambda": LAMBDA,
@@ -213,6 +224,9 @@ def main() -> int:
             }
             for i in range(n)
         ]
+        for i, t in enumerate(texts):
+            if k_guard(t):
+                preds[i][MODEL_IDS[2]] = (preds[i][MODEL_IDS[1]][0], preds[i][MODEL_IDS[2]][1])
         choice = allocate(preds, mult, margin)
         score = sum(truth[(eid, c)][0] for eid, c in zip(episode_ids, choice)) / n
         used = (
