@@ -79,11 +79,19 @@ LAMBDA = 10.0
 # 예측된 L→M 격차(참값 상관 0.033)가 그리디 배분에 역선택을 일으키는 것을 차단.
 GAMMA = 0.0
 BIAS_SLOT = 33  # os2_features numeric bias (항상 1.0)
-# v1.7 KFEAT-P + 가드, fast margin 0.94(train-only 스윕·cap v2 정책 상한) / premium 0.90 (V17-EXP-KFEAT §15, dev 8회차 통과)
+# R1.4 (2026-08-25, V19-GATES 확인 게이트 통과): 전 tier β=1.0 통일 — β0.5 얇은 쐐기의
+# 독립 fold 부도 5회 실증에 따른 원칙. margin은 β1.0 쐐기가 비용을 부풀린 가격표 기준이라
+# 1을 넘을 수 있다(balanced 1.08). premium은 margin(n) 분기: 배치 n>=800이면 폭탄 동거
+# 위험이 희석되어(800/880/1,760 부트스트랩 전 표본 무초과) 깊은 margin 1.08을 쓴다.
 TIER_CONFIG = {
-    "fast": {"beta": 0.5, "margin": 0.94},
-    "balanced": {"beta": 0.5, "margin": 0.92},
-    "premium": {"beta": 0.5, "margin": 0.90},
+    "fast": {"beta": 1.0, "margin": 0.94},
+    "balanced": {"beta": 1.0, "margin": 1.08},
+    "premium": {
+        "beta": 1.0,
+        "margin": 0.96,
+        "margin_deep": 1.08,
+        "deep_min_episodes": 800,
+    },
 }
 
 

@@ -52,6 +52,10 @@ class LinearArtifact:
     tier_config: Dict[str, Tuple[float, float]]  # tier -> (beta, margin)
     policy_id: str
     policy_digest: str
+    # R1.4 margin(n): premium 한정 — 배치 크기 n >= deep_min_episodes일 때 margin_deep 사용.
+    # 소표본 폭탄 동거 위험이 규모에 희석되는 실측(게이트 기록)에 따른 결정적 분기.
+    premium_margin_deep: Optional[float] = None
+    premium_deep_min_episodes: Optional[int] = None
 
 
 def _weight_row(value: Any, name: str) -> Tuple[float, ...]:
@@ -97,9 +101,25 @@ def parse_artifact(value: Any) -> LinearArtifact:
         margin = float(raw_config[tier]["margin"])
         if not (0 <= beta <= 8):
             raise ProtocolError("beta는 0 이상 8 이하여야 합니다.")
-        if not (0 < margin <= 1):
-            raise ProtocolError("margin은 0보다 크고 1 이하여야 합니다.")
+        # R1.4: β=1.0 비관 쐐기가 계획 비용을 부풀리므로 margin이 1을 넘을 수 있다
+        # (balanced 1.08). 상한 1.25는 게이트에서 검증된 범위의 여유 상계.
+        if not (0 < margin <= 1.25):
+            raise ProtocolError("margin은 0보다 크고 1.25 이하여야 합니다.")
         tier_config[tier] = (beta, margin)
+    premium_margin_deep = None
+    premium_deep_min_episodes = None
+    raw_premium = raw_config["premium"]
+    if "margin_deep" in raw_premium or "deep_min_episodes" in raw_premium:
+        if not ("margin_deep" in raw_premium and "deep_min_episodes" in raw_premium):
+            raise ProtocolError(
+                "margin_deep과 deep_min_episodes는 함께 제공되어야 합니다."
+            )
+        premium_margin_deep = float(raw_premium["margin_deep"])
+        premium_deep_min_episodes = int(raw_premium["deep_min_episodes"])
+        if not (0 < premium_margin_deep <= 1.25):
+            raise ProtocolError("margin_deep은 0보다 크고 1.25 이하여야 합니다.")
+        if premium_deep_min_episodes < 1:
+            raise ProtocolError("deep_min_episodes는 1 이상이어야 합니다.")
     return LinearArtifact(
         score_weights=score_weights,
         logcost_weights=logcost_weights,
@@ -108,6 +128,8 @@ def parse_artifact(value: Any) -> LinearArtifact:
         tier_config=tier_config,
         policy_id=str(value["policy_id"]),
         policy_digest=str(value["policy_sha256"]),
+        premium_margin_deep=premium_margin_deep,
+        premium_deep_min_episodes=premium_deep_min_episodes,
     )
 
 
@@ -161,6 +183,14 @@ def make_learned_submission(
     if artifact.policy_digest != policy_sha256(policy):
         raise ProtocolError("artifact와 현재 정책의 SHA-256이 다릅니다.")
     beta, margin = artifact.tier_config[tier]
+    if (
+        tier == "premium"
+        and artifact.premium_margin_deep is not None
+        and len(inputs.episodes) >= artifact.premium_deep_min_episodes
+    ):
+        # R1.4 margin(n): 배치가 충분히 크면 폭탄 동거 위험이 희석되어
+        # 게이트 실측(800·880·1,760 전 표본 무초과)이 허용하는 깊은 margin을 쓴다.
+        margin = artifact.premium_margin_deep
     pessimism = {
         model: (
             1.0
