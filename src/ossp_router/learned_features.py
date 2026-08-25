@@ -70,7 +70,7 @@ _WORD_PROBLEM_RE = re.compile(
 
 # ---------------------------------------------------------------- KFEAT (v1.7)
 # K-only(K는 풀고 M은 못 푸는) 문항 판별 밀집 특징 27종 — 산술 규모·수학 구조·코드 제어흐름.
-# 출처: experiments-emb/kfeat.py (V17-EXP-KFEAT, 2026-08-23). 표준 라이브러리만. 라벨 무관 결정적.
+# 표준 라이브러리만 사용. 라벨 무관 결정적.
 KFEAT_SLOT = 40  # numeric 인덱스 40..66 (기존 0..39 불변)
 KFEAT_DIM = 27
 
@@ -175,7 +175,7 @@ def _kfeat_numeric(text: str) -> list:
     ]
 
 # K 비용 폭주 가드 — 소수/합성수/소인수분해 + 7자리 이상 정수: K(think) 비용이 중앙값의 ~33배로 폭주하고
-# 비용 예측기가 12~14배 과소 예측함(V17-EXP-KFEAT §13). 해당 문항은 K 승급 후보에서 제외한다.
+# 비용 예측기가 12~14배 과소 예측한다. 해당 문항은 K 승급 후보에서 제외한다.
 _KGUARD_PAT = re.compile(r"\b(prime|composite|prime factors?|factors? of)\b", re.I)
 _KGUARD_BIG = re.compile(r"\d{7,}")
 

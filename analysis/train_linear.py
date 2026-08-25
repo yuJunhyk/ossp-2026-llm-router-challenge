@@ -3,9 +3,7 @@
 
 """선형(dual ridge) 라우터 최종 트레이너 — learned-router.v1.json 생성.
 
-선택 근거 (rematch 재대결, Dev 미사용 — 하니스 원문은 정리 이전
-git 이력(커밋 132af11)의 analysis/rematch.py, 게이트 기록은 기록 저장소
-docs/experiments/ 이관본 참조):
+선택 근거 (train 전용 재대결, Dev 미사용 — 결정 기록은 docs/decisions.md):
 - 템플릿 그룹 5-fold × 3 seed = 15 fold 재대결에서 linear(λ=10)가
   weighted CV 0.6553으로 1위 (ens 최고 0.6540, v1.2 구성 w=0.5는 0.6465).
 - tier별 (β, margin)은 같은 재대결의 제약 캘리브레이션 승자를 그대로 쓴다:
@@ -74,12 +72,12 @@ def cost_stats(
 
 
 LAMBDA = 10.0
-# v1.6 uplift 축소 (게이트 기록 V16-GATES.md — 기록 저장소 docs/experiments/ 이관본):
+# v1.6 uplift 축소:
 # γ=0 — 3.1 점수 헤드를 Light 헤드 + 전체 train 평균 uplift 상수로 교체.
 # 예측된 L→M 격차(참값 상관 0.033)가 그리디 배분에 역선택을 일으키는 것을 차단.
 GAMMA = 0.0
 BIAS_SLOT = 33  # os2_features numeric bias (항상 1.0)
-# R1.4 (2026-08-25, V19-GATES 확인 게이트 통과): 전 tier β=1.0 통일 — β0.5 얇은 쐐기의
+# R1.4 (2026-08-25): 전 tier β=1.0 통일 — β0.5 얇은 쐐기의
 # 독립 fold 부도 5회 실증에 따른 원칙. margin은 β1.0 쐐기가 비용을 부풀린 가격표 기준이라
 # 1을 넘을 수 있다(balanced 1.08). premium은 margin(n) 분기: 배치 n>=800이면 폭탄 동거
 # 위험이 희석되어(800/880/1,760 부트스트랩 전 표본 무초과) 깊은 margin 1.08을 쓴다.
@@ -171,11 +169,11 @@ def main() -> int:
         "artifact_type": learned_router.ARTIFACT_TYPE,
         "schema_version": 1,
         "trained_on": (
-            "public train split only (1,760 episodes); predictor/config selected "
-            "by template-group 5-fold x 3-seed CV (analysis/rematch.py), dev untouched; "
-            "v1.6 uplift-shrink gamma=0 applied to ax31 score head; "
-            "v1.7 KFEAT 27 dense features (numeric slots 40..66, z-score folded into weights) "
-            "+ runtime K-guard for primality/factorization prompts (V17-EXP-KFEAT)"
+            "public train split only (1,760 episodes); predictor and calibration selected "
+            "by template-group 5-fold x 3-seed cross-validation, dev untouched; "
+            "ax31 score head replaced by light head plus constant uplift; "
+            "27 dense descriptive features (numeric slots 40..66, z-score folded into weights) "
+            "+ runtime guard for primality/factorization prompts"
         ),
         "models": list(MODEL_IDS),
         "lambda": LAMBDA,

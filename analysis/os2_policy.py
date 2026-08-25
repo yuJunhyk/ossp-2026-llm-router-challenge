@@ -7,9 +7,8 @@ Multi-choice-knapsack greedy over predicted (score, cost) per model. The
 offline calibration (work/train_router.py) and the container runtime share
 this exact module.
 
-출처: 동일 참가자의 독립 재구현 세션(learned_policy.py)에서 예측기
-재대결을 위해 그대로 이식했다 (재대결 하니스는 정리 이전 git 이력,
-커밋 132af11의 analysis/rematch.py 참조).
+런타임 배분 구현과 같은 배분을 학습 측이 쓰도록 맞춘 이식본이다. 캘리브레이션
+시점 배분과 런타임 배분의 동치성은 저장소 테스트가 검사한다.
 """
 
 from __future__ import annotations
