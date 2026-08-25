@@ -69,7 +69,6 @@ path = [
   "RELEASING.md",
   "docs/architecture.md",
   "docs/decisions.md",
-  "docs/roadmap.md",
   ".github/workflows/test.yml",
   ".github/PULL_REQUEST_TEMPLATE.md",
   ".github/ISSUE_TEMPLATE/bug_report.md",

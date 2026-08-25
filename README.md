@@ -7,6 +7,24 @@ SPDX-License-Identifier: Apache-2.0
 
 [![tests](https://github.com/yuJunhyk/ossp-2026-llm-router-challenge/actions/workflows/test.yml/badge.svg)](https://github.com/yuJunhyk/ossp-2026-llm-router-challenge/actions/workflows/test.yml)
 
+> **2026 오픈소스 개발자대회 SK텔레콤 지정과제 출품작**
+>
+> | 항목 | 값 |
+> | --- | --- |
+> | train 교차검증 (vpCV) | **0.6667** · 예산 초과 0 |
+> | 공개 Dev 880문항 | **0.6780** · 비용 비율 1.111 / 1.662 / 3.214 (한도 1.25 / 2.0 / 4.0) |
+> | 직전 구성(v1.6) 대비 | +0.0050 |
+>
+> - 재현 절차: [5분 만에 돌려보기](#5분-만에-돌려보기)
+> - 설계 결정과 기각 이력: [docs/decisions.md](docs/decisions.md)
+> - 버전 이력: [CHANGELOG.md](CHANGELOG.md)
+> - 한계와 향후 방향: [Issues](https://github.com/yuJunhyk/ossp-2026-llm-router-challenge/issues)
+>
+> | 역할 | 담당 범위 |
+> | --- | --- |
+> | 검증 · 캘리브레이션 | 사전 등록 게이트 운영, β·margin 재도출, 예산 안전 검증, 저장소 운영 |
+> | 특징 · 가드 설계 | 서술형 밀집 특징 27종, 컨텍스트 소진 가드 |
+
 프롬프트 본문만 읽고 문항마다 어느 언어 모델에 맡길지 **호출 전에** 정하는 라우터입니다. 쉬운 문항은 싼 모델로 보내고 아낀 예산을 판단이 뒤집히는 문항에 몰아주어, 정해진 비용 한도 안에서 평균 품질을 최대로 끌어올립니다. 추론은 파이썬 표준 라이브러리만 쓰며, 학습 결과는 1.11 MB JSON 하나로 이미지에 실립니다.
 
 어려운 지점은 배분 알고리즘이 아니라 **비용 예측이 틀린다**는 데 있습니다. 어느 등급이든 총비용이 한도를 넘으면 그 등급은 부분 감점이 아니라 통째로 0점입니다. 그래서 이 라우터는 예측이 빗나가는 쪽을 실제보다 비싸게 값매겨 손대지 않고, 그렇게 확보한 여유를 예측이 잘 맞는 자리에만 씁니다.
@@ -79,11 +97,7 @@ python3 -m venv .venv-data
 
 ## 왜 이렇게 정했나
 
-**신호가 없으면 배우지 말고 버리고, 신호가 실재하면 출처를 가리지 않습니다.** 3단계의 상수 교체가 첫 번째 채택 개선입니다. 비싼 모델로 바꿨을 때 정답이 뒤집히는 정도를 문항별로 예측하려던 시도가 참값과 상관 0.033에 그쳤고, 그 노이즈를 배분에 먹이는 것보다 학습 평균 상수 하나로 갈음하는 편이 나았습니다. 두 번째 채택 개선은 반대 방향입니다 — 팀 동료가 설계한 서술형 밀집 특징 27종은 같은 사전 등록 게이트에서 판별 개선이 재현되어 그대로 들어왔습니다.
-
-**꼬리는 예측이 아니라 정책으로 막습니다.** 비용의 두꺼운 꼬리를 더 정밀한 예측으로 잡으려는 시도 — 분위수 상한, 유형별 분산 분리 — 는 실측에서 전부 기각됐습니다. 조건부 비용 신호 자체는 실재했지만(잔차 상관 +0.43) 같은 margin에서 예산을 열 번 터뜨렸습니다. 쐐기의 강도도 같은 방식으로 정해졌습니다. β를 0.5로 낮춘 후보들은 캘리브레이션 검사를 통과하고도 새로 뽑은 fold에서 다섯 번 예산을 터뜨렸는데, 원인은 다이얼이 아니라 절차였습니다 — 관측된 최악치에 맞춰 margin을 고르면 당선자는 언제나 관측 경계에 앉고, 유한 표본의 최악은 진짜 최악을 과소평가합니다. 그래서 판정 기준에 선택 밖 fold와 부트스트랩을 추가하고 β는 세 등급 모두 1.0으로 올렸습니다.
-
-**여유는 취향이 아니라 필요조건입니다.** 주최측 baseline 하나가 공개 Dev에서 예산의 99.6%를 쓰고도 채점용 평가셋에서 한도를 넘겨 0점 처리된 전례가 있습니다. 관측된 비용 이동은 약 +5.4%였습니다. 그래서 이 라우터의 Dev 예산 판정은 사용률에 1.054를 곱한 값까지 한도 안이어야 통과로 정의했고, 세 등급 모두 통과했습니다. 실제 여유는 그보다 큽니다 — 가장 빠듯한 Fast가 +12%, Premium은 +24%의 이동을 견딥니다. Premium이 예산의 80.3%만 쓰고 남기는 몫은 계산 착오가 아니라 파산을 막는 보험료입니다.
+세 원칙이 모든 결정을 관통합니다. 신호가 없으면 배우지 않고 버립니다 — 문항별 격차 예측은 참값과 상관 0.033의 노이즈라 상수로 대체했습니다. 꼬리는 예측이 아니라 정책으로 막습니다 — β를 0.5로 낮춘 후보들이 새로 뽑은 fold에서 다섯 번 예산을 터뜨린 실측이 β=1.0의 근거입니다. 여유는 취향이 아니라 필요조건입니다 — 공개 Dev 예산의 99.6%를 쓰던 주최측 baseline이 채점셋에서 0점 처리된 전례가 있고, 이 라우터는 +12~24%의 비용 이동을 견딥니다. 각 결정의 실측 근거와 기각된 대안 전체는 [docs/decisions.md](docs/decisions.md)에 있습니다.
 
 ## 저장소 구조
 
@@ -93,7 +107,7 @@ python3 -m venv .venv-data
 | `src/ossp_router/resources/learned-router.v1.json` | 학습 결과 아티팩트 1.11 MB |
 | `analysis/` | 학습 파이프라인 세 파일. numpy만 필요하며 이미지에는 들어가지 않음 |
 | `tests/test_learned_*.py` · `test_feature_parity.py` · `test_image_packaging.py` · `test_runtime_edges.py` | 라우터 계약·특징 동등성·패키징 테스트 |
-| `docs/architecture.md` · `decisions.md` · `roadmap.md` | 설계·결정 기록·로드맵 |
+| `docs/architecture.md` · `decisions.md` | 설계와 결정 기록 |
 | `CHANGELOG.md` · `RELEASING.md` | 버전 이력과 제출 체크리스트 |
 | `.github/` | CI 워크플로우와 이슈·PR 템플릿 |
 
@@ -101,19 +115,15 @@ python3 -m venv .venv-data
 
 `analysis/`는 세 파일입니다. `train_linear.py`가 최종 학습기이고, `os2_features.py`와 `os2_policy.py`는 학습 측이 런타임과 같은 특징·배분을 쓰도록 맞춘 이식본입니다. 두 구현이 비트 단위로 같은지는 `tests/test_feature_parity.py`가 공개 train 전량으로 검사합니다.
 
-## 아티팩트 재학습
+## 재현과 검증
 
-numpy만 있으면 됩니다.
+아티팩트 재학습에는 numpy만 필요합니다. 스크립트가 종료 직전에 런타임 구현으로 같은 문항을 다시 예측해 최대 오차가 1e-9를 넘으면 실패로 중단하며, 현재 아티팩트에서 이 값은 1.67e-15입니다.
 
 ```console
 PYTHONPATH=src python3 analysis/train_linear.py
 ```
 
-기본값으로 공개 train 1,760문항을 읽어 `src/ossp_router/resources/learned-router.v1.json`을 다시 씁니다. 학습이 끝나면 스크립트가 런타임 구현으로 같은 문항을 다시 예측해 값이 일치하는지 대조하며, 최대 오차가 1e-9를 넘으면 실패로 중단합니다. 현재 아티팩트에서 이 값은 1.67e-15입니다.
-
-## 컨테이너
-
-공식 평가 플랫폼은 `linux/arm64`입니다.
+공식 평가 플랫폼은 `linux/arm64`이며, 자원 한도는 CPU 2코어 · 메모리 2 GiB(스왑 없음) · 등급당 90초 · 프로세스 32 · 압축 레이어 합계 1 GiB입니다.
 
 ```console
 docker build --pull --platform linux/arm64 \
@@ -124,23 +134,13 @@ PYTHONPATH=src python3 tools/check_runtime.py \
   --report build/runtime-check-report.json
 ```
 
-| 자원 | 한도 |
-|---|---|
-| CPU | 2 코어 |
-| 메모리 | 2 GiB, 스왑 없음 |
-| 등급당 실행 시간 | 90초 |
-| 프로세스·스레드 | 32 |
-| OCI 압축 레이어 합계 | 1 GiB |
-
-이미지에 무엇이 들어가는지는 `.dockerignore`가 전부 거부한 뒤 필요한 파일만 다시 허용하는 방식으로 정합니다. 이 목록에서 파일 하나가 빠져 세 등급이 모두 0점이 될 뻔한 적이 있어서, `tests/test_image_packaging.py`가 진입점에서 도달 가능한 모듈을 정적으로 추적해 누락을 잡습니다.
-
-## 검증
+테스트는 의존성 없이 돕니다.
 
 ```console
 PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
-결정성은 세 층위로 검사합니다. 반복 실행 시 출력 바이트가 일치하고, 문항 순서를 섞거나 episode_id를 바꿔도 배정이 변하지 않으며, 배분의 동률 처리를 문항 위치에서 예측값으로 바꾼 뒤 캘리브레이션 시점 배분과의 동치성을 전수 비교했습니다.
+결정성은 세 층위로 검사합니다. 반복 실행 시 출력 바이트가 일치하고, 문항 순서를 섞거나 episode_id를 바꿔도 배정이 변하지 않으며, 배분의 동률 처리를 문항 위치에서 예측값으로 바꾼 뒤 캘리브레이션 시점 배분과의 동치성을 전수 비교했습니다. 이미지에 무엇이 실리는지는 `.dockerignore` 화이트리스트가 정하고, `tests/test_image_packaging.py`가 진입점에서 도달 가능한 모듈을 정적으로 추적해 누락을 잡습니다.
 
 개발 규율도 적어둘 만합니다. 후보 선택은 train 전용 교차검증으로만 했고, 공개 Dev는 확정된 구성의 예산을 확인하는 용도로만 열었습니다 — 버전을 확정한 뒤 각 1회씩입니다. 캠페인 전체에서 Dev 점수가 후보 선택에 개입한 횟수는 0회입니다. 이 규율을 세운 계기는 초기 버전이 Dev를 반복해서 들여다본 탓에 점수의 1.1pp가 허상이었다는 자체 감사 결과였습니다.
 
@@ -172,28 +172,16 @@ PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'
 
 ## 문서
 
-과제 규격은 주최측 문서를 그대로 따릅니다.
+과제 규격(규칙 · 채점 · 런타임 · 데이터 · 제출 · 집행)은 `docs/`의 대문자 파일명 주최측 문서를 그대로 따릅니다. 이 저장소가 직접 작성한 문서는 다음과 같습니다.
 
 | 문서 | 내용 |
 |---|---|
-| [docs/CHALLENGE_RULES.md](docs/CHALLENGE_RULES.md) | 과제 규칙 |
-| [docs/SCORING.md](docs/SCORING.md) | 점수 계산 |
-| [docs/RUNTIME.md](docs/RUNTIME.md) | 컨테이너 실행 규격 |
-| [docs/DATA_CARD.md](docs/DATA_CARD.md) | 데이터 카드 |
-| [docs/SUBMISSION.md](docs/SUBMISSION.md) | 제출 안내 |
-| [docs/ENFORCEMENT.md](docs/ENFORCEMENT.md) | 규칙 위반 처리 |
-
-이 저장소가 직접 작성한 문서는 다음과 같습니다.
-
-| 문서 | 내용 |
-|---|---|
-| [docs/architecture.md](docs/architecture.md) | 계층 구조·데이터 흐름·결정성 보장 |
-| [docs/decisions.md](docs/decisions.md) | 사전 등록 게이트 프로토콜과 채택·기각 결정 기록 |
-| [docs/roadmap.md](docs/roadmap.md) | 이후 발전 방향 |
+| [docs/architecture.md](docs/architecture.md) | 계층 구조·아티팩트 형식·결정성 보장 |
+| [docs/decisions.md](docs/decisions.md) | 판정 절차와 채택·기각 결정 기록 |
 | [CHANGELOG.md](CHANGELOG.md) | 버전 이력 |
 | [RELEASING.md](RELEASING.md) | 제출·릴리스 체크리스트 |
 
-실험 전문과 게이트 원장은 별도 문서 저장소에 있습니다. 결과보고서는 설계·검증·결과 분석·한계를, 버전 회고는 채택하지 않은 경로들의 사인을 각각 다룹니다.
+실험 전문과 게이트 원장은 별도 문서 저장소에 있습니다.
 
 ## 라이선스
 
