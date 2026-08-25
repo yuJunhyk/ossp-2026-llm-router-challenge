@@ -63,6 +63,7 @@ SPDX-License-Identifier = "Apache-2.0"
 # gets the same encoding workaround as the upstream documents above.
 [[annotations]]
 path = [
+  "submission-ossp-skt.json",
   "analysis/train_linear.py",
   "tests/test_feature_parity.py",
   "CHANGELOG.md",
