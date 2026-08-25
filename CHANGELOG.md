@@ -5,7 +5,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Changelog
 
-이 저장소의 라우터 구성 변경 이력입니다. 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 번호는 대회 기간의 내부 명명을 그대로 씁니다. 각 결정의 근거는 [docs/decisions.md](docs/decisions.md)에 있습니다.
+Efficient LLM Router의 구성 변경 이력입니다. 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/)를 따르되, 버전 번호는 대회 기간의 내부 명명을 그대로 씁니다. 각 결정의 근거는 [docs/decisions.md](docs/decisions.md)에 있습니다.
 
 ## [R1.4] - 2026-08-25 — 최종 제출 구성
 

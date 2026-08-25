@@ -3,12 +3,12 @@ SPDX-FileCopyrightText: Copyright 2026 SK TELECOM CO., LTD.
 SPDX-License-Identifier: Apache-2.0
 -->
 
-# Efficient LLM Routing Challenge — 예산 제약 라우터 R1.4
+# Efficient LLM Router
+
+**예산 제약 아래에서 프롬프트마다 최적 언어 모델을 고르는 라우터** · 2026 오픈소스 개발자대회 SK텔레콤 지정과제 출품작
 
 [![tests](https://github.com/yuJunhyk/ossp-2026-llm-router-challenge/actions/workflows/test.yml/badge.svg)](https://github.com/yuJunhyk/ossp-2026-llm-router-challenge/actions/workflows/test.yml)
 
-> **2026 오픈소스 개발자대회 SK텔레콤 지정과제 출품작**
->
 > | 항목 | 값 |
 > | --- | --- |
 > | train 교차검증 (vpCV) | **0.6667** · 예산 초과 0 |
