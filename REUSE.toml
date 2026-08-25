@@ -58,3 +58,24 @@ path = [
 precedence = "override"
 SPDX-FileCopyrightText = "Copyright 2026 SK TELECOM CO., LTD."
 SPDX-License-Identifier = "Apache-2.0"
+
+# Documents and CI configuration authored by this fork. Korean-heavy Markdown
+# gets the same encoding workaround as the upstream documents above.
+[[annotations]]
+path = [
+  "analysis/train_linear.py",
+  "tests/test_feature_parity.py",
+  "CHANGELOG.md",
+  "RELEASING.md",
+  "docs/architecture.md",
+  "docs/decisions.md",
+  "docs/roadmap.md",
+  ".github/workflows/test.yml",
+  ".github/PULL_REQUEST_TEMPLATE.md",
+  ".github/ISSUE_TEMPLATE/bug_report.md",
+  ".github/ISSUE_TEMPLATE/feature_request.md",
+  ".github/ISSUE_TEMPLATE/question.md",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "Copyright 2026 yuJunhyk"
+SPDX-License-Identifier = "Apache-2.0"
