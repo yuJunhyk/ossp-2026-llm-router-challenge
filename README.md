@@ -85,28 +85,19 @@ python3 -m venv .venv-data
 
 **여유는 취향이 아니라 필요조건입니다.** 주최측 baseline 하나가 공개 Dev에서 예산의 99.6%를 쓰고도 채점용 평가셋에서 한도를 넘겨 0점 처리된 전례가 있습니다. 관측된 비용 이동은 약 +5.4%였습니다. 그래서 이 라우터의 Dev 예산 판정은 사용률에 1.054를 곱한 값까지 한도 안이어야 통과로 정의했고, 세 등급 모두 통과했습니다. 실제 여유는 그보다 큽니다 — 가장 빠듯한 Fast가 +12%, Premium은 +24%의 이동을 견딥니다. Premium이 예산의 80.3%만 쓰고 남기는 몫은 계산 착오가 아니라 파산을 막는 보험료입니다.
 
-## 한계
-
-정직하게 적어둡니다.
-
-- **Fast 등급 회수율이 15.4%로 가장 낮은데 가중치는 0.4로 가장 큽니다.** 예산이 1.25배뿐이라 살 수 있는 승급의 절대량이 적은 구조적 제약이며, 라우터 품질로 메울 수 있는 종류가 아닙니다.
-- **Premium 실지출이 한도의 80.3%에 그칩니다.** β=1.0이 계획 비용을 실제 기대의 두 배 가까이로 부풀리기 때문입니다. 큰 배치에서 지갑을 넓히는 margin 분기로 이전 구성(60.7%)보다 격차를 좁혔지만, 나머지는 위에 적은 보험료입니다.
-- **예측기 선택의 근거가 근소합니다.** 재대결에서 1위와 3위의 차이가 0.0013으로 교차검증 노이즈 안에 있습니다. 사전 등록한 규칙과 레이턴시·단순성 근거를 기록으로 남기는 것 외에 더 할 수 있는 게 없었습니다.
-- **공개 라벨이 1,760문항뿐입니다.** 사전 등록 게이트로 측정한 개선 후보 스무 경로 남짓 가운데 채택은 넷 — 상수 대체, 밀집 특징, 전 등급 재캘리브레이션, margin 규모 분기 — 뿐이고, 기각된 여럿의 사인은 아이디어의 결함이 아니라 라벨 부족이었습니다. 소형 인코더 임베딩은 신호가 실재함을 확인했지만(분산 -1.84%) 배분 점수로 환산되지 않았습니다.
-
 ## 저장소 구조
 
-| 경로 | 내용 | 출처 |
-|---|---|---|
-| `src/ossp_router/learned_*.py` | 제출 이미지에 실리는 라우터 런타임. 표준 라이브러리만 사용 | 우리 |
-| `src/ossp_router/resources/learned-router.v1.json` | 학습 결과 아티팩트 1.11 MB | 우리 |
-| `analysis/` | 학습 파이프라인 세 파일. numpy만 필요하며 이미지에는 들어가지 않음 | 우리 |
-| `tests/test_learned_*.py` · `test_feature_parity.py` · `test_image_packaging.py` · `test_runtime_edges.py` | 라우터 계약·특징 동등성·패키징 테스트 | 우리 |
-| `docs/architecture.md` · `decisions.md` · `roadmap.md` | 설계·결정 기록·로드맵 (docs/ 안에서 소문자 파일명이 우리 문서) | 우리 |
-| `CHANGELOG.md` · `RELEASING.md` | 버전 이력과 제출 체크리스트 | 우리 |
-| `.github/` | CI 워크플로우와 이슈·PR 템플릿 | 우리 |
-| `src/ossp_router/` 나머지 | 프로토콜·채점·CLI·실행 진입점 | 주최측 |
-| `baselines/` · `container/` · `configs/` · `data/` · `docs/`(대문자 문서) · `schemas/` · `tools/` | 스타터 키트 | 주최측 |
+| 경로 | 내용 |
+|---|---|
+| `src/ossp_router/learned_*.py` | 제출 이미지에 실리는 라우터 런타임. 표준 라이브러리만 사용 |
+| `src/ossp_router/resources/learned-router.v1.json` | 학습 결과 아티팩트 1.11 MB |
+| `analysis/` | 학습 파이프라인 세 파일. numpy만 필요하며 이미지에는 들어가지 않음 |
+| `tests/test_learned_*.py` · `test_feature_parity.py` · `test_image_packaging.py` · `test_runtime_edges.py` | 라우터 계약·특징 동등성·패키징 테스트 |
+| `docs/architecture.md` · `decisions.md` · `roadmap.md` | 설계·결정 기록·로드맵 |
+| `CHANGELOG.md` · `RELEASING.md` | 버전 이력과 제출 체크리스트 |
+| `.github/` | CI 워크플로우와 이슈·PR 템플릿 |
+
+나머지 경로는 주최측 스타터 키트를 그대로 둔 것입니다.
 
 `analysis/`는 세 파일입니다. `train_linear.py`가 최종 학습기이고, `os2_features.py`와 `os2_policy.py`는 학습 측이 런타임과 같은 특징·배분을 쓰도록 맞춘 이식본입니다. 두 구현이 비트 단위로 같은지는 `tests/test_feature_parity.py`가 공개 train 전량으로 검사합니다.
 
@@ -152,10 +143,6 @@ PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'
 결정성은 세 층위로 검사합니다. 반복 실행 시 출력 바이트가 일치하고, 문항 순서를 섞거나 episode_id를 바꿔도 배정이 변하지 않으며, 배분의 동률 처리를 문항 위치에서 예측값으로 바꾼 뒤 캘리브레이션 시점 배분과의 동치성을 전수 비교했습니다.
 
 개발 규율도 적어둘 만합니다. 후보 선택은 train 전용 교차검증으로만 했고, 공개 Dev는 확정된 구성의 예산을 확인하는 용도로만 열었습니다 — 버전을 확정한 뒤 각 1회씩입니다. 캠페인 전체에서 Dev 점수가 후보 선택에 개입한 횟수는 0회입니다. 이 규율을 세운 계기는 초기 버전이 Dev를 반복해서 들여다본 탓에 점수의 1.1pp가 허상이었다는 자체 감사 결과였습니다.
-
-## Quickstart: baseline에서 시작하기
-
-주최측이 제공하는 baseline 네 종 — 전량 최저가, 프롬프트 휴리스틱, 특징 예산, 해시 정규식 — 의 실행법과 설명은 [baselines/README.md](baselines/README.md)에 있습니다. 이 저장소의 `router-run` 진입점은 위 라우터로 배선돼 있으므로, baseline을 돌려보려면 각 baseline 스크립트를 직접 실행하면 됩니다.
 
 ## 참가·제출 절차
 
