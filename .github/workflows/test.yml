@@ -11,14 +11,19 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.9", "3.12"]
+        # 3.9는 setup.cfg가 선언한 최소 지원 버전이고, 3.11은 제출 컨테이너가 싣는 버전이다.
+        # 이 둘이 실제로 보증해야 하는 범위다.
+        python-version: ["3.9", "3.11"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      # 런타임이 표준 라이브러리 전용이라 테스트도 의존성 없이 돈다.
+      # 라우터 런타임은 표준 라이브러리만 쓰지만, 패키징 테스트가
+      # pip wheel --no-build-isolation을 호출하므로 빌드 백엔드가 환경에 있어야 한다.
+      - run: python -m pip install --upgrade pip setuptools wheel
       # 컨테이너 격리 테스트는 OSSP_RUN_CONTAINER_TESTS=1일 때만 실행되므로 CI에서는 자동으로 건너뛴다.
       - run: PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'
 
@@ -28,7 +33,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
       - run: pip install ruff reuse
       - run: ruff check .
       - run: reuse lint
