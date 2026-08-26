@@ -174,16 +174,26 @@ def _kfeat_numeric(text: str) -> list:
         math.log1p(arg_digits),
     ]
 
-# K 비용 폭주 가드 — 소수/합성수/소인수분해 + 7자리 이상 정수: K(think) 비용이 중앙값의 ~33배로 폭주하고
-# 비용 예측기가 12~14배 과소 예측한다. 해당 문항은 K 승급 후보에서 제외한다.
+# K 비용 폭주 가드 — 7자리 이상 정수와 함께 다음이 나타나면 K(think) 승급 후보에서 제외한다.
+# (a) 소수/합성수/소인수분해 어휘: K 비용이 중앙값의 ~33배로 폭주하고 비용 예측기가 12~14배 과소 예측.
+# (b) 2차 이상 다항식 방정식: 같은 줄에서 거듭제곱(`x**2`·`x^3`) 뒤에 `= 0`이 오는 문장
+#     ("… = 0.", "… = 0. What is x?", "… = 0 for j." — `= 0.5` 같은 소수는 제외). 공개 train에서
+#     (a)에 걸리지 않는 해당 문항은 6건이고 L/M/K 실측 점수 평균 0/0/0.08, K 비용 합계 4.1 credits —
+#     승급 이득이 없는 폭탄 유형. train 전용 교차검증 게이트(analysis/cv_gate.py)에서 점수 손실 없이
+#     소표본 예산 통과율을 올렸다.
 _KGUARD_PAT = re.compile(r"\b(prime|composite|prime factors?|factors? of)\b", re.I)
 _KGUARD_BIG = re.compile(r"\d{7,}")
+_KGUARD_POLY_EQ0 = re.compile(r"(?:\*\*|\^)\s*[2-9].*?=\s*0(?![.,]?\d)")
 
 
 def k_guard(text: str) -> bool:
     """True면 axk1-think 승급 금지 (예측 K 점수를 M 점수로 대체)."""
     t = text[:6000]
-    return bool(_KGUARD_PAT.search(t) and _KGUARD_BIG.search(t))
+    if not _KGUARD_BIG.search(t):
+        return False
+    if _KGUARD_PAT.search(t):
+        return True
+    return bool(_KGUARD_POLY_EQ0.search(t))
 
 
 def _bucket(token: str, salt: str) -> Tuple[int, float]:
