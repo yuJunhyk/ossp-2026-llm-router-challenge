@@ -33,7 +33,7 @@ SPDX-License-Identifier: Apache-2.0
 | 예측 | `learned_router.py` 안의 선형 평가 | 아티팩트의 가중치로 6개 헤드(모델 3종 × 점수·로그 비용)를 내적 한 번에 계산 |
 | 배분 | `learned_router.py` 안의 배낭 | 승급 증분을 점수 이득 ÷ 비용 순으로 정렬해 지갑이 허락하는 만큼 구매 |
 | 학습 | `analysis/train_linear.py` (+ `os2_features.py`, `os2_policy.py`) | 공개 train 1,760문항으로 dual ridge 폐형해를 풀어 아티팩트 생성. numpy 필요, 이미지에는 들어가지 않음 |
-| 게이트 | `analysis/cv_gate.py` | 템플릿 그룹 5-fold × 3 seed 재적합으로 fold 밖 예측을 만들고, 가드·margin(n) 후보를 fold·부분집합·출처 편향·배포 규모 게이트와 vpCV로 판정. 입력 split의 그룹 라벨만 읽고 Dev의 결과는 읽지 않음 |
+| 게이트 | `analysis/cv_gate.py` | fold 밖 예측으로 가드·margin 후보를 판정. 판정 기준 전체는 스크립트 상단 독스트링에 있음. Dev의 결과는 읽지 않음 |
 
 학습 측과 런타임 측은 특징 추출과 배분을 각각 따로 구현합니다. 두 구현이 비트 단위로 같은지는 `tests/test_feature_parity.py`가 공개 train 전량으로 검사하고, 학습 스크립트도 종료 직전에 런타임 구현으로 같은 문항을 다시 예측해 최대 오차가 1e-9를 넘으면 실패로 중단합니다.
 
