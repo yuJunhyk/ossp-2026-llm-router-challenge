@@ -173,7 +173,8 @@ def main() -> int:
             "by template-group 5-fold x 3-seed cross-validation, dev untouched; "
             "ax31 score head replaced by light head plus constant uplift; "
             "27 dense descriptive features (numeric slots 40..66, z-score folded into weights) "
-            "+ runtime guard for primality/factorization prompts"
+            "+ runtime guard for primality/factorization prompts and "
+            "large-integer polynomial equations"
         ),
         "models": list(MODEL_IDS),
         "lambda": LAMBDA,
@@ -232,7 +233,10 @@ def main() -> int:
         ]
         for i, t in enumerate(texts):
             if k_guard(t):
-                preds[i][MODEL_IDS[2]] = (preds[i][MODEL_IDS[1]][0], preds[i][MODEL_IDS[2]][1])
+                preds[i][MODEL_IDS[2]] = (
+                    preds[i][MODEL_IDS[1]][0],
+                    preds[i][MODEL_IDS[2]][1],
+                )
         choice = allocate(preds, mult, margin)
         score = sum(truth[(eid, c)][0] for eid, c in zip(episode_ids, choice)) / n
         used = (

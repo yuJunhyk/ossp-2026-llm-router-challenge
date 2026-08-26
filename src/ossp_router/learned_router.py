@@ -203,7 +203,8 @@ def make_learned_submission(
     for episode in inputs.episodes:
         base = predict_episode(episode, artifact)
         if k_guard(episode_text(episode)):
-            # v1.7 가드: K 비용 폭주 문항 — K 점수를 M 점수로 낮춰 승급 후보에서 제외
+            # 소진 가드(v1.7 어휘 규칙 + R1.5 다항식 규칙): K 비용 폭주 문항 —
+            # K 점수를 M 점수로 낮춰 승급 후보에서 제외
             base[MODEL_IDS[2]] = (base[MODEL_IDS[1]][0], base[MODEL_IDS[2]][1])
         predictions.append(
             {
